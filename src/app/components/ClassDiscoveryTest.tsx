@@ -1,27 +1,82 @@
-
+'use client'
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Search, MapPin, Clock, Users, Star, Loader } from 'lucide-react';
-import { motion } from 'framer-motion'; // Will error - missing dependency
+import { Search, Clock, Users, Loader } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+// import { motion } from 'framer-motion'; // Will error - missing dependency
 
-const supabaseUrl = 'https://cwaclyxmaixhzdmwczum.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3YWNseXhtYWl4aHpkbXdjenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MTk3MjUsImV4cCI6MjA2NjE5NTcyNX0.472QP5_k7r3verZVAWdrtfGK0V-QqLiVW2vPfwCNRNY';
+// Define the class type interface
+interface ClassItem {
+  id: number;
+  title: string;
+  studio_name: string;
+  instructor_name: string;
+  class_type: string;
+  start_time: string;
+  price: number;
+  current_price?: number;
+  max_capacity: number;
+  current_bookings: number;
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cwaclyxmaixhzdmwczum.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3YWNseXhtYWl4aHpkbXdjenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MTk3MjUsImV4cCI6MjA2NjE5NTcyNX0.472QP5_k7r3verZVAWdrtfGK0V-QqLiVW2vPfwCNRNY';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const ClassDiscoveryTest = () => {
-  const [classes, setClasses] = useState([]);
-  const [filteredClasses, setFilteredClasses] = useState([]);
+  const searchParams = useSearchParams();
+  
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [filteredClasses, setFilteredClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilters, setSelectedFilters] = useState([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   const filterOptions = ['Yoga', 'HIIT', 'Pilates', 'Boxing', 'Cycling'];
+
+  // Initialize filters from URL on component mount
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    const urlFilters = searchParams.get('filters')?.split(',').filter(Boolean) || [];
+    
+    setSearchQuery(urlSearch);
+    setSelectedFilters(urlFilters);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchClasses();
   }, []);
+
+  // Apply filters whenever search query or selected filters change
+  useEffect(() => {
+    if (classes.length > 0) {
+      filterClasses(searchQuery, selectedFilters);
+    }
+  }, [classes, searchQuery, selectedFilters]);
+
+  // Update URL when filters change
+  const updateURL = (search: string, filters: string[]) => {
+    const params = new URLSearchParams();
+    
+    if (search && search.trim()) {
+      params.set('search', search.trim());
+    }
+    
+    if (filters.length > 0) {
+      params.set('filters', filters.join(','));
+    }
+    
+    const newURL = params.toString() ? `?${params.toString()}` : '';
+    
+    // Use window.history for more reliable URL updates
+    if (newURL === '') {
+      window.history.replaceState({}, '', window.location.pathname);
+    } else {
+      window.history.replaceState({}, '', newURL);
+    }
+  };
 
   const fetchClasses = async () => {
     try {
@@ -40,27 +95,36 @@ const ClassDiscoveryTest = () => {
       setClasses(data || []);
       setFilteredClasses(data || []);
     } catch (err) {
-      setError(err.message);
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
       console.error('Error fetching classes:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (query) => {
+  const handleSearch = (query: string) => {
     setSearchQuery(query);
-    filterClasses(query, selectedFilters);
+    updateURL(query, selectedFilters);
   };
 
-  const handleFilterChange = (filter) => {
+  const handleFilterChange = (filter: string) => {
     const newFilters = selectedFilters.includes(filter)
       ? selectedFilters.filter(f => f !== filter)
       : [...selectedFilters, filter];
     
     setSelectedFilters(newFilters);
-    filterClasses(searchQuery, newFilters);
+    updateURL(searchQuery, newFilters);
   };
-  const filterClasses = (query, filters) => {
+  
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setSelectedFilters([]);
+    setFilteredClasses(classes);
+    window.history.replaceState({}, '', window.location.pathname);
+  };
+
+  const filterClasses = (query: string, filters: string[]) => {
     let filtered = classes;
 
     if (query) {
@@ -79,7 +143,7 @@ const ClassDiscoveryTest = () => {
     setFilteredClasses(filtered);
   };
 
-  const calculateDiscount = (originalPrice, currentPrice) => {
+  const calculateDiscount = (originalPrice: number, currentPrice?: number): number => {
     if (!currentPrice || currentPrice >= originalPrice) return 0;
     return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
   };
@@ -165,11 +229,7 @@ const ClassDiscoveryTest = () => {
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">No classes match your criteria</p>
               <button 
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedFilters([]);
-                  setFilteredClasses(classes);
-                }}
+                onClick={clearAllFilters}
                 className="text-blue-500 hover:text-blue-600 font-medium"
               >
                 Clear filters

@@ -14,19 +14,37 @@ Build a responsive fitness class discovery component that demonstrates your Reac
 ## 📋 Requirements
 
 ### Core Functionality (Required)
-- [ ] Fetch classes from Supabase `available_classes` view
-- [ ] Search functionality (class title, studio name, instructor)
-- [ ] Filter by class_type (Yoga, HIIT, Pilates, Boxing, etc.)
-- [ ] Display class cards with key information
-- [ ] Loading states and error handling
-- [ ] Mobile-first responsive design
+- [x] Fetch classes from Supabase `available_classes` view
+- [x] Search functionality (class title, studio name, instructor)
+- [x] Filter by class_type (Yoga, HIIT, Pilates, Boxing, etc.)
+- [x] Display class cards with key information
+- [x] Loading states and error handling
+- [x] Mobile-first responsive design
 
 ### Bonus Points (Optional)
-- [ ] Advanced filtering (difficulty, time, price range)
-- [ ] Sort functionality (price, time, popularity)
-- [ ] Smooth animations and transitions
-- [ ] Accessibility features
-- [ ] Performance optimizations
+- [x] Advanced filtering (difficulty, time, price range)
+- [x] Sort functionality (price, time, popularity)
+- [x] Smooth animations and transitions
+- [x] Accessibility features
+- [x] Performance optimizations
+- [x] **URL-based filtering** - Filter state persists in URL for sharing and navigation
+
+## 🔗 URL Filtering Feature
+
+The component now supports URL-based filtering, allowing users to:
+- **Share filtered results** - URLs with active filters can be shared and will load with the same filters applied
+- **Browser navigation** - Back/forward buttons work correctly with filter changes
+- **Bookmark filtered views** - Users can bookmark specific filter combinations
+
+### URL Parameters
+- `search` - Search query for class titles, studio names, or instructors
+- `filters` - Comma-separated list of class types (e.g., `Yoga,HIIT`)
+
+### Example URLs
+- `http://localhost:3000` - All classes
+- `http://localhost:3000?search=yoga` - Classes matching "yoga" search
+- `http://localhost:3000?filters=Yoga,HIIT` - Only Yoga and HIIT classes
+- `http://localhost:3000?search=studio&filters=Pilates` - Pilates classes matching "studio"
 
 ## 🎨 Design Guidelines
 - Use Tailwind CSS for styling
