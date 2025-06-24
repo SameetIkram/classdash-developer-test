@@ -23,7 +23,7 @@ const TimeRangeFilter: React.FC<TimeRangeFilterProps> = ({
         <select
           value={timeRange.start}
           onChange={(e) => onTimeRangeChange('start', e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white"
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white text-black"
         >
           <option value="">Start Time</option>
           {timeOptions.map(option => (
@@ -39,7 +39,7 @@ const TimeRangeFilter: React.FC<TimeRangeFilterProps> = ({
         <select
           value={timeRange.end}
           onChange={(e) => onTimeRangeChange('end', e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white"
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white text-black"
         >
           <option value="">End Time</option>
           {timeOptions.map(option => (

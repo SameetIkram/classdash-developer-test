@@ -26,7 +26,7 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
       <select
         value={`${sortBy}-${sortDirection}`}
         onChange={(e) => handleChange(e.target.value)}
-        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white"
+        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white text-black"
       >
         <option value="time-asc">Time (Earliest)</option>
         <option value="time-desc">Time (Latest)</option>

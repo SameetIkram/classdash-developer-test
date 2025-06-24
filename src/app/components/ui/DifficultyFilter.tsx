@@ -56,7 +56,7 @@ const DifficultyFilter: React.FC<DifficultyFilterProps> = ({
         type="button"
         ref={buttonRef}
         onClick={() => setShowDifficultyDropdown(!showDifficultyDropdown)}
-        className="px-3 py-2 min-w-[120px] mr-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white appearance-none pr-8 flex items-center justify-between"
+        className="px-3 py-2 min-w-[120px] mr-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:outline-offset-2 bg-white appearance-none pr-8 flex items-center justify-between text-black"
       >
         <span>
           {advancedFilters.difficulty.length === 0 
@@ -68,7 +68,11 @@ const DifficultyFilter: React.FC<DifficultyFilterProps> = ({
         </svg>
       </button>
       {showDifficultyDropdown && typeof window !== 'undefined' && ReactDOM.createPortal(
-        <div style={dropdownStyle} className="bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+        <div 
+          style={dropdownStyle} 
+          className="bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <div className="p-2 space-y-1">
             {['Advanced', 'Intermediate', 'Beginner', 'All Levels'].map((difficulty) => (
               <label key={difficulty} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
@@ -78,7 +82,7 @@ const DifficultyFilter: React.FC<DifficultyFilterProps> = ({
                   onChange={(e) => handleDifficultyChange(difficulty, e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:outline-none"
                 />
-                <span className="text-sm text-gray-700">{difficulty}</span>
+                <span className="text-sm text-black">{difficulty}</span>
               </label>
             ))}
           </div>

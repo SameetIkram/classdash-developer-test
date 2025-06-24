@@ -21,7 +21,7 @@ const FilterChips: React.FC<FilterChipsProps> = ({
           className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all min-w-[80px] sm:min-w-[0] ${
             selectedFilters.includes(filter)
               ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 text-black hover:bg-gray-200'
           }`}
         >
           {filter}

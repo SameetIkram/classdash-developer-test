@@ -9,7 +9,6 @@ import {
   ClassList,
   LoadingSpinner,
   ErrorDisplay,
-  filterClasses,
   sortClasses,
   updateURL
 } from './ui';
@@ -69,7 +68,27 @@ const ClassDiscoveryTest = () => {
   // Apply filters and sorting whenever any filter or sort changes
   useEffect(() => {
     if (classes.length > 0) {
-      const filtered = filterClasses(classes, searchQuery, selectedFilters, advancedFilters);
+      let filtered = [...classes];
+
+      if (searchQuery) {
+        filtered = filtered.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()));
+      }
+      
+      if (selectedFilters.length > 0) {
+        filtered = filtered.filter(c => selectedFilters.some(filter => c.title.toLowerCase().includes(filter.toLowerCase())));
+      }
+      
+      if (advancedFilters.difficulty.length > 0) {
+        filtered = filtered.filter(c => 
+          c.difficulty && advancedFilters.difficulty.includes(c.difficulty)
+        );
+      }
+
+      if (advancedFilters.priceRange) {
+        const { min, max } = advancedFilters.priceRange;
+        filtered = filtered.filter(c => c.price >= min && c.price <= max);
+      }
+
       const sorted = sortClasses(filtered, sortBy, sortDirection);
       setFilteredClasses(sorted);
     }
