@@ -1,23 +1,19 @@
 'use client'
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Search, Clock, Users, Loader } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-// import { motion } from 'framer-motion'; // Will error - missing dependency
-
-// Define the class type interface
-interface ClassItem {
-  id: number;
-  title: string;
-  studio_name: string;
-  instructor_name: string;
-  class_type: string;
-  start_time: string;
-  price: number;
-  current_price?: number;
-  max_capacity: number;
-  current_bookings: number;
-}
+import {
+  ClassItem,
+  SortOption,
+  Header,
+  ClassList,
+  LoadingSpinner,
+  ErrorDisplay,
+  filterClasses,
+  sortClasses,
+  updateURL
+} from './ui';
+import { AdvancedFilters } from './ui/types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cwaclyxmaixhzdmwczum.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3YWNseXhtYWl4aHpkbXdjenVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MTk3MjUsImV4cCI6MjA2NjE5NTcyNX0.472QP5_k7r3verZVAWdrtfGK0V-QqLiVW2vPfwCNRNY';
@@ -33,6 +29,13 @@ const ClassDiscoveryTest = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    difficulty: [],
+    timeRange: { start: '', end: '' },
+    priceRange: { min: 0, max: 100 }
+  });
+  const [sortBy, setSortBy] = useState<SortOption>('time');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const filterOptions = ['Yoga', 'HIIT', 'Pilates', 'Boxing', 'Cycling'];
 
@@ -40,43 +43,37 @@ const ClassDiscoveryTest = () => {
   useEffect(() => {
     const urlSearch = searchParams.get('search') || '';
     const urlFilters = searchParams.get('filters')?.split(',').filter(Boolean) || [];
+    const urlDifficulty = searchParams.get('difficulty')?.split(',').filter(Boolean) || [];
+    const urlTimeStart = searchParams.get('timeStart') || '';
+    const urlTimeEnd = searchParams.get('timeEnd') || '';
+    const urlPriceMin = searchParams.get('priceMin') ? parseInt(searchParams.get('priceMin')!) : 0;
+    const urlPriceMax = searchParams.get('priceMax') ? parseInt(searchParams.get('priceMax')!) : 100;
+    const urlSortBy = (searchParams.get('sortBy') as SortOption) || 'time';
+    const urlSortDir = (searchParams.get('sortDir') as 'asc' | 'desc') || 'asc';
     
     setSearchQuery(urlSearch);
     setSelectedFilters(urlFilters);
+    setAdvancedFilters({
+      difficulty: urlDifficulty,
+      timeRange: { start: urlTimeStart, end: urlTimeEnd },
+      priceRange: { min: urlPriceMin, max: urlPriceMax }
+    });
+    setSortBy(urlSortBy);
+    setSortDirection(urlSortDir);
   }, [searchParams]);
 
   useEffect(() => {
     fetchClasses();
   }, []);
 
-  // Apply filters whenever search query or selected filters change
+  // Apply filters and sorting whenever any filter or sort changes
   useEffect(() => {
     if (classes.length > 0) {
-      filterClasses(searchQuery, selectedFilters);
+      const filtered = filterClasses(classes, searchQuery, selectedFilters, advancedFilters);
+      const sorted = sortClasses(filtered, sortBy, sortDirection);
+      setFilteredClasses(sorted);
     }
-  }, [classes, searchQuery, selectedFilters]);
-
-  // Update URL when filters change
-  const updateURL = (search: string, filters: string[]) => {
-    const params = new URLSearchParams();
-    
-    if (search && search.trim()) {
-      params.set('search', search.trim());
-    }
-    
-    if (filters.length > 0) {
-      params.set('filters', filters.join(','));
-    }
-    
-    const newURL = params.toString() ? `?${params.toString()}` : '';
-    
-    // Use window.history for more reliable URL updates
-    if (newURL === '') {
-      window.history.replaceState({}, '', window.location.pathname);
-    } else {
-      window.history.replaceState({}, '', newURL);
-    }
-  };
+  }, [classes, searchQuery, selectedFilters, advancedFilters, sortBy, sortDirection]);
 
   const fetchClasses = async () => {
     try {
@@ -84,7 +81,7 @@ const ClassDiscoveryTest = () => {
       setError(null);
   
       const { data, error: supabaseError } = await supabase
-        .from('test_classes') // Should be 'available_classes' for richer data
+        .from('test_classes')
         .select('*')
         .order('start_time', { ascending: true });
 
@@ -92,8 +89,14 @@ const ClassDiscoveryTest = () => {
         throw supabaseError;
       }
 
-      setClasses(data || []);
-      setFilteredClasses(data || []);
+      // Add mock difficulty data if not present
+      const classesWithDifficulty = (data || []).map((cls, index) => ({
+        ...cls,
+        difficulty: cls.difficulty || ['Beginner', 'Intermediate', 'Advanced'][index % 3]
+      }));
+
+      setClasses(classesWithDifficulty);
+      setFilteredClasses(classesWithDifficulty);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
@@ -105,7 +108,7 @@ const ClassDiscoveryTest = () => {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    updateURL(query, selectedFilters);
+    updateURL(query, selectedFilters, advancedFilters, sortBy, sortDirection);
   };
 
   const handleFilterChange = (filter: string) => {
@@ -114,105 +117,64 @@ const ClassDiscoveryTest = () => {
       : [...selectedFilters, filter];
     
     setSelectedFilters(newFilters);
-    updateURL(searchQuery, newFilters);
+    updateURL(searchQuery, newFilters, advancedFilters, sortBy, sortDirection);
+  };
+
+  const handleAdvancedFiltersChange = (filters: AdvancedFilters) => {
+    setAdvancedFilters(filters);
+    updateURL(searchQuery, selectedFilters, filters, sortBy, sortDirection);
+  };
+
+  const handleSortChange = (sort: SortOption) => {
+    const newDirection = sort === sortBy && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortBy(sort);
+    setSortDirection(newDirection);
+    updateURL(searchQuery, selectedFilters, advancedFilters, sort, newDirection);
+  };
+
+  const handleSortDirectionChange = (direction: 'asc' | 'desc') => {
+    setSortDirection(direction);
+    updateURL(searchQuery, selectedFilters, advancedFilters, sortBy, direction);
   };
   
   const clearAllFilters = () => {
     setSearchQuery('');
     setSelectedFilters([]);
+    setAdvancedFilters({
+      difficulty: [],
+      timeRange: { start: '', end: '' },
+      priceRange: { min: 0, max: 100 }
+    });
+    setSortBy('time');
+    setSortDirection('asc');
     setFilteredClasses(classes);
     window.history.replaceState({}, '', window.location.pathname);
   };
 
-  const filterClasses = (query: string, filters: string[]) => {
-    let filtered = classes;
-
-    if (query) {
-      filtered = filtered.filter(cls => 
-        cls.title?.toLowerCase().includes(query.toLowerCase()) ||
-        cls.studio_name?.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    if (filters.length > 0) {
-      filtered = filtered.filter(cls =>
-        filters.includes(cls.class_type)
-      );
-    }
-
-    setFilteredClasses(filtered);
-  };
-
-  const calculateDiscount = (originalPrice: number, currentPrice?: number): number => {
-    if (!currentPrice || currentPrice >= originalPrice) return 0;
-    return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-  };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading classes...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
-          <p className="text-red-600 mb-4">Error loading classes:</p>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={fetchClasses}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorDisplay error={error} onRetry={fetchClasses} />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-      {/* Header - Will need Tailwind config for styling to work properly */}
-      <div className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Class-Dash Test</h1>
-          
-          {/* Search Bar */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search classes, studios..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          {/* Basic Filters */}
-          <div className="flex space-x-2 overflow-x-auto pb-2">
-            {filterOptions.map(filter => (
-              <button
-                key={filter}
-                onClick={() => handleFilterChange(filter)}
-                className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all ${
-                  selectedFilters.includes(filter)
-                    ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <Header 
+        searchQuery={searchQuery}
+        selectedFilters={selectedFilters}
+        advancedFilters={advancedFilters}
+        sortBy={sortBy}
+        sortDirection={sortDirection}
+        filterOptions={filterOptions}
+        onSearchChange={handleSearch}
+        onFilterChange={handleFilterChange}
+        onAdvancedFiltersChange={handleAdvancedFiltersChange}
+        onSortChange={handleSortChange}
+        onSortDirectionChange={handleSortDirectionChange}
+        onClearAll={clearAllFilters}
+      />
 
       {/* Content */}
       <div className="max-w-md mx-auto px-4 py-6">
@@ -223,77 +185,13 @@ const ClassDiscoveryTest = () => {
           </h2>
         </div>
         
-        {/* Class List */}
-        <div className="space-y-4">
-          {filteredClasses.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">No classes match your criteria</p>
-              <button 
-                onClick={clearAllFilters}
-                className="text-blue-500 hover:text-blue-600 font-medium"
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            filteredClasses.map(classItem => {
-              const discount = calculateDiscount(classItem.price, classItem.current_price);
-              const finalPrice = classItem.current_price || classItem.price;
-              
-              return (
-                <div key={classItem.id} className="bg-white rounded-xl shadow-lg overflow-hidden transition-all hover:shadow-xl">
-                  {/* Simple class image placeholder */}
-                  <div className="h-32 bg-gradient-to-br from-blue-100 to-green-100 flex items-center justify-center">
-                    <div className="text-2xl">
-                      {classItem.class_type === 'Yoga' ? '🧘‍♀️' : 
-                       classItem.class_type === 'HIIT' ? '💪' : 
-                       classItem.class_type === 'Boxing' ? '🥊' : '💫'}
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    <div className="mb-3">
-                      <h3 className="font-bold text-lg text-gray-900">{classItem.title}</h3>
-                      <p className="text-gray-600 text-sm">{classItem.studio_name}</p>
-                      <p className="text-gray-500 text-xs">with {classItem.instructor_name}</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        <span>{new Date(classItem.start_time).toLocaleTimeString('en-GB', { 
-                          hour: '2-digit', minute: '2-digit' 
-                        })}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 mr-1" />
-                        <span>{classItem.max_capacity - classItem.current_bookings} spots left</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xl font-bold text-green-600">£{finalPrice}</span>
-                        {discount > 0 && (
-                          <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
-                            {discount}% OFF
-                          </span>
-                        )}
-                      </div>
-                      
-                      <button className="bg-gradient-to-r from-blue-500 to-green-500 text-white px-4 py-2 rounded-lg font-semibold">
-                        Book
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <ClassList 
+          classes={filteredClasses}
+          onClearFilters={clearAllFilters}
+        />
       </div>
     </div>
   );
 };
 
-export default ClassDiscoveryTest;
+export default ClassDiscoveryTest; 
